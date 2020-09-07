@@ -8,7 +8,7 @@
 
 `cd audio_to_midi`
 
-`python3 audio_to_midi.py input_wav_file.wav output_midi_file.mid`
+`python3 audio2midi.py input_wav_file.wav output_midi_file.mid`
 
 
 ## Introduction
