@@ -30,7 +30,7 @@ Here, we will show how to use Python's librosa to build an automatic solfege-to-
 
 ## How does audio-to-midi conversion work?
 
-Most audio-to-midi converters use the idea that pitched sounds are perceived when we (humans) sare exposed to periodic sound waves. The periodicity property makes it highly useful to represent the waves as Fourier Series, that is, a weighted sum of sinusoidal signals whose frequencies are multiples of a fundamental F0) . The pitch, which allows us to order sounds from bass to treble, is so directly correlated to F0 that many articles on automatic music transcription use the words "pitch" and "F0" indistinctively. 
+Most audio-to-midi converters use the idea that pitched sounds are perceived when we (humans) are exposed to periodic sound waves. The periodicity property makes it highly useful to represent the waves as Fourier Series, that is, a weighted sum of sinusoidal signals whose frequencies are multiples of a fundamental F0) . The pitch, which allows us to order sounds from bass to treble, is so directly correlated to F0 that many articles on automatic music transcription use the words "pitch" and "F0" indistinctively. 
 
 It is possible to detect pitch in small frames of an audio file. This detection yields information that is later combined to find discrete events. Last, we write these events into a MIDI file, which we can render layer with a synthesizer.
 
