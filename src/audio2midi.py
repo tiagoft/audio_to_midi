@@ -251,39 +251,76 @@ def pianoroll_to_midi(bpm : float, pianoroll : list) -> midiutil.MIDIFile():
         MyMIDI.addNote(0, 0, int(pianoroll[i][2]), onsets[i], durations[i], 100)
 
     return MyMIDI
-        
 
-def run(file_in, file_out):
-    #sr=22050
-    note_min='A2'
-    note_max='E6'
-    voiced_acc = 0.9
-    onset_acc = 0.8
-    frame_length=2048
-    window_length=1024
-    hop_length=256
-    pitch_acc = 0.99
-    spread = 0.6
-    
-    y, sr = librosa.load(file_in)
+#def wave_to_midi(y, note_min : str = "A2", note_max : str = "E5", p_stay_note : float, p_stay_silence: float, sr : int, frame_length : int=2048, hop_length : int=512, pitch_acc : float=0.9, voiced_acc : float=0.9, onset_acc : float=0.9, spread : float=0.2) -> midiutil.MIDIFile():
 
-    T = transition_matrix(note_min, note_max, 0.9, 0.2)
+def wave_to_midi(y : np.array, sr : int = 22050, frame_length : int=2048, hop_length : int=512, note_min : str="A2", note_max : str = "E5", p_stay_note : float = 0.9,
+                 p_stay_silence : float = 0.7, pitch_acc : float=0.9, voiced_acc : float=0.9, onset_acc : float=0.9, spread : float=0.2 ) -> midiutil.MIDIFile():
+    """Converts an audio signal to a MIDI file
+
+    Args:
+        y (np.array): Array containing audio samples
+        sr (int, optional): Sample rate of the audio signal Defaults to 22050.
+        frame_length (int, optional): Frame length for analysis. Defaults to 2048.
+        hop_length (int, optional): Hop between two frames in analysis. Defaults to 512.
+        note_min (str, optional): Lowest allowed note in "A#4" format. Defaults to "A2".
+        note_max (str, optional): Highest allowed note in "A#4" format. Defaults to "E5".
+        p_stay_note (float, optional): Probability of staying in the same note for two subsequent frames. Defaults to 0.9.
+        p_stay_silence (float, optional): Probability of staying in the silence state for two subsequent frames. Defaults to 0.7.
+        pitch_acc (float, optional): Probability (reliability) that the pitch estimator is correct. Defaults to 0.9.
+        voiced_acc (float, optional): Estimated accuracy of the "voiced" parameter.. Defaults to 0.9.
+        onset_acc (float, optional): Estimated accuracy of the onset detector. Defaults to 0.9.
+        spread (float, optional): Probability that the audio signal deviates by one semitone due to vibrato or glissando. Defaults to 0.2.
+
+    Returns:
+        midi (midiutil.MIDIFile): A MIDI file that can be written to disk.
+    """    
+    T = transition_matrix(note_min, note_max, p_stay_note, p_stay_silence)
     P = prior_probabilities(y, note_min, note_max, sr, frame_length, hop_length, pitch_acc, voiced_acc, onset_acc, spread)
     p_init = np.zeros(T.shape[0])
     p_init[0] = 1
-    
     states = librosa.sequence.viterbi(P, T, p_init=p_init)
-    #print(states)
+    
     pianoroll=states_to_pianoroll(states, note_min, note_max, hop_length/sr)
-    #print(pianoroll)
-    MyMIDI = pianoroll_to_midi(y, pianoroll)
-    with open(file_out, "wb") as output_file:
-        MyMIDI.writeFile(output_file)
+    bpm = librosa.beat.tempo(y)[0]
+    MyMIDI = pianoroll_to_midi(bpm, pianoroll)
+    #with open(file_out, "wb") as output_file:
+    #    MyMIDI.writeFile(output_file)
+    return MyMIDI
+
+
+# def run(file_in, file_out):
+#     note_min='A2'
+#     note_max='E6'
+#     voiced_acc = 0.9
+#     onset_acc = 0.8
+#     frame_length=2048
+#     window_length=1024
+#     hop_length=256
+#     pitch_acc = 0.99
+#     spread = 0.6
+    
+#     y, sr = librosa.load(file_in)
+
+#     T = transition_matrix(note_min, note_max, 0.9, 0.2)
+#     P = prior_probabilities(y, note_min, note_max, sr, frame_length, hop_length, pitch_acc, voiced_acc, onset_acc, spread)
+#     p_init = np.zeros(T.shape[0])
+#     p_init[0] = 1
+    
+#     states = librosa.sequence.viterbi(P, T, p_init=p_init)
+#     #print(states)
+#     pianoroll=states_to_pianoroll(states, note_min, note_max, hop_length/sr)
+#     #print(pianoroll)
+#     MyMIDI = pianoroll_to_midi(y, pianoroll)
+#     with open(file_out, "wb") as output_file:
+#         MyMIDI.writeFile(output_file)
 
     
 
-print("Welcome!")
-file_in = sys.argv[1]
-file_out = sys.argv[2]
-print(sys.argv[1], sys.argv[2])    
-run(file_in, file_out)
+
+
+# print("Welcome!")
+# file_in = sys.argv[1]
+# file_out = sys.argv[2]
+# print(sys.argv[1], sys.argv[2])    
+# run(file_in, file_out)
