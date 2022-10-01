@@ -4,7 +4,12 @@ import numpy as np
 import librosa
 import midiutil
 
-def transition_matrix(note_min: str, note_max: str, p_stay_note: float, p_stay_silence: float) -> np.array:
+
+def transition_matrix(
+        note_min: str,
+        note_max: str,
+        p_stay_note: float,
+        p_stay_silence: float) -> np.array:
     """
     Returns the transition matrix with one silence state and two states
     (onset and sustain) for each note. This matrix mixes an acoustic model with two states with
@@ -23,8 +28,8 @@ def transition_matrix(note_min: str, note_max: str, p_stay_note: float, p_stay_s
 
     Returns
     -------
-    T : np.array (2*N_notes+1x2*N_notes+1)
-        Trasition matrix in which T[i,j] is the probability of
+    transmat : np.array (2*N_notes+1x2*N_notes+1)
+        Trasition matrix in which t[i,j] is the probability of
         going from state i to state j
 
     """
@@ -32,49 +37,60 @@ def transition_matrix(note_min: str, note_max: str, p_stay_note: float, p_stay_s
     midi_min = librosa.note_to_midi(note_min)
     midi_max = librosa.note_to_midi(note_max)
     n_notes = midi_max - midi_min + 1
-    p_l = (1-p_stay_silence)/n_notes
-    p_ll = (1-p_stay_note)/(n_notes+1)
+    p_l = (1 - p_stay_silence) / n_notes
+    p_ll = (1 - p_stay_note) / (n_notes + 1)
 
     # Transition matrix:
     # State 0 = silence
     # States 1, 3, 5... = onsets
     # States 2, 4, 6... = sustains
-    T = np.zeros((2*n_notes+1, 2*n_notes+1))
+    transmat = np.zeros((2 * n_notes + 1, 2 * n_notes + 1))
 
     # State 0: silence
-    T[0, 0] = p_stay_silence
+    transmat[0, 0] = p_stay_silence
     for i in range(n_notes):
-        T[0, (i*2)+1] = p_l
+        transmat[0, (i * 2) + 1] = p_l
 
     # States 1, 3, 5... = onsets
     for i in range(n_notes):
-        T[(i*2)+1, (i*2)+2] = 1
+        transmat[(i * 2) + 1, (i * 2) + 2] = 1
 
     # States 2, 4, 6... = sustains
     for i in range(n_notes):
-        T[(i*2)+2, 0] = p_ll
-        T[(i*2)+2, (i*2)+2] = p_stay_note
+        transmat[(i * 2) + 2, 0] = p_ll
+        transmat[(i * 2) + 2, (i * 2) + 2] = p_stay_note
         for j in range(n_notes):
-            T[(i*2)+2, (j*2)+1] = p_ll
+            transmat[(i * 2) + 2, (j * 2) + 1] = p_ll
 
-    return T
+    return transmat
 
-def prior_probabilities(y: np.array, note_min: str, note_max: str, sr: int, frame_length: int = 2048, hop_length: int = 512, pitch_acc: float = 0.9, voiced_acc: float = 0.9, onset_acc: float = 0.9, spread: float = 0.2) -> np.array:
+
+def prior_probabilities(
+        audio_signal: np.array,
+        note_min: str,
+        note_max: str,
+        srate: int,
+        frame_length: int = 2048,
+        hop_length: int = 512,
+        pitch_acc: float = 0.9,
+        voiced_acc: float = 0.9,
+        onset_acc: float = 0.9,
+        spread: float = 0.2) -> np.array:
     """
-    Estimate prior (observed) probabilities from audio signal    
+    Estimate prior (observed) probabilities from audio signal
 
     Parameters
     ----------
-    y : 1-D numpy array
+    audio_signal : 1-D numpy array
         Array containing audio samples
 
     note_min : string, 'A#4' format
         Lowest note supported by this estimator
     note_max : string, 'A#4' format
         Highest note supported by this estimator
-    sr : int
+    srate : int
         Sample rate.
-    frame_length : int 
+    frame_length : int
     window_length : int
     hop_length : int
         Parameters for FFT estimation
@@ -90,8 +106,8 @@ def prior_probabilities(y: np.array, note_min: str, note_max: str, sr: int, fram
 
     Returns
     -------
-    P : 2D numpy array.
-        P[j,t] is the prior probability of being in state j at time t.
+    priors : 2D numpy array.
+        priors[j,t] is the prior probability of being in state j at time t.
 
     """
 
@@ -101,44 +117,46 @@ def prior_probabilities(y: np.array, note_min: str, note_max: str, sr: int, fram
     midi_max = librosa.note_to_midi(note_max)
     n_notes = midi_max - midi_min + 1
 
-    # F0 and voicing
-    f0, voiced_flag, voiced_prob = librosa.pyin(
-        y, fmin*0.9, fmax*1.1, sr, frame_length, int(frame_length/2), hop_length)
-    tuning = librosa.pitch_tuning(f0)
-    f0_ = np.round(librosa.hz_to_midi(f0-tuning)).astype(int)
+    # pitch and voicing
+    pitch, voiced_flag, _ = librosa.pyin(
+        audio_signal, fmin * 0.9, fmax * 1.1,
+        srate, frame_length, int(frame_length / 2), hop_length)
+    tuning = librosa.pitch_tuning(pitch)
+    f0_ = np.round(librosa.hz_to_midi(pitch - tuning)).astype(int)
     onsets = librosa.onset.onset_detect(
-        y, sr=sr, hop_length=hop_length, backtrack=True)
+        audio_signal, sr=srate,
+        hop_length=hop_length, backtrack=True)
 
-    P = np.ones((n_notes*2 + 1, len(f0)))
+    priors = np.ones((n_notes * 2 + 1, len(pitch)))
 
-    for t in range(len(f0)):
+    for n_frame in range(len(pitch)):
         # probability of silence or onset = 1-voiced_prob
         # Probability of a note = voiced_prob * (pitch_acc) (estimated note)
         # Probability of a note = voiced_prob * (1-pitch_acc) (estimated note)
-        if voiced_flag[t] == False:
-            P[0, t] = voiced_acc
+        if not voiced_flag[n_frame]:
+            priors[0, n_frame] = voiced_acc
         else:
-            P[0, t] = 1-voiced_acc
+            priors[0, n_frame] = 1 - voiced_acc
 
         for j in range(n_notes):
-            if t in onsets:
-                P[(j*2)+1, t] = onset_acc
+            if n_frame in onsets:
+                priors[(j * 2) + 1, n_frame] = onset_acc
             else:
-                P[(j*2)+1, t] = 1-onset_acc
+                priors[(j * 2) + 1, n_frame] = 1 - onset_acc
 
-            if j+midi_min == f0_[t]:
-                P[(j*2)+2, t] = pitch_acc
+            if j + midi_min == f0_[n_frame]:
+                priors[(j * 2) + 2, n_frame] = pitch_acc
 
-            elif np.abs(j+midi_min-f0_[t]) == 1:
-                P[(j*2)+2, t] = pitch_acc * spread
+            elif np.abs(j + midi_min - f0_[n_frame]) == 1:
+                priors[(j * 2) + 2, n_frame] = pitch_acc * spread
 
             else:
-                P[(j*2)+2, t] = 1-pitch_acc
+                priors[(j * 2) + 2, n_frame] = 1 - pitch_acc
 
-    return P
+    return priors
 
 
-def states_to_pianoroll(states: list, note_min: str, note_max: str, hop_time: float) -> list:
+def states_to_pianoroll(states: list, note_min: str, hop_time: float) -> list:
     """
     Converts state sequence to an intermediate, internal piano-roll notation
 
@@ -148,8 +166,6 @@ def states_to_pianoroll(states: list, note_min: str, note_max: str, hop_time: fl
         Sequence of states estimated by Viterbi
     note_min : string, 'A#4' format
         Lowest note supported by this estimator
-    note_max : string, 'A#4' format
-        Highest note supported by this estimator
     hop_time : float
         Time interval between two states.
 
@@ -161,7 +177,6 @@ def states_to_pianoroll(states: list, note_min: str, note_max: str, hop_time: fl
         is the onset time for the second note.
     """
     midi_min = librosa.note_to_midi(note_min)
-    midi_max = librosa.note_to_midi(note_max)
 
     states_ = np.hstack((states, np.zeros(1)))
 
@@ -176,12 +191,12 @@ def states_to_pianoroll(states: list, note_min: str, note_max: str, hop_time: fl
     last_onset = 0
     last_offset = 0
     last_midi = 0
-    for i in range(len(states_)):
+    for i, _ in enumerate(states_):
         if my_state == silence:
             if int(states_[i] % 2) != 0:
                 # Found an onset!
                 last_onset = i * hop_time
-                last_midi = ((states_[i]-1)/2)+midi_min
+                last_midi = ((states_[i] - 1) / 2) + midi_min
                 last_note = librosa.midi_to_note(last_midi)
                 my_state = onset
 
@@ -193,19 +208,19 @@ def states_to_pianoroll(states: list, note_min: str, note_max: str, hop_time: fl
             if int(states_[i] % 2) != 0:
                 # Found an onset.
                 # Finish last note
-                last_offset = i*hop_time
+                last_offset = i * hop_time
                 my_note = [last_onset, last_offset, last_midi, last_note]
                 output.append(my_note)
 
                 # Start new note
                 last_onset = i * hop_time
-                last_midi = ((states_[i]-1)/2)+midi_min
+                last_midi = ((states_[i] - 1) / 2) + midi_min
                 last_note = librosa.midi_to_note(last_midi)
                 my_state = onset
 
             elif states_[i] == 0:
                 # Found silence. Finish last note.
-                last_offset = i*hop_time
+                last_offset = i * hop_time
                 my_note = [last_onset, last_offset, last_midi, last_note]
                 output.append(my_note)
                 my_state = silence
@@ -221,7 +236,7 @@ def pianoroll_to_midi(bpm: float, pianoroll: list) -> midiutil.MIDIFile():
     ----------
     bpm: float
         Beats per minute for the MIDI file. If necessary, use
-        bpm = librosa.beat.tempo(y)[0] to estimate bpm.    
+        bpm = librosa.beat.tempo(y)[0] to estimate bpm.
 
     pianoroll : list
         A pianoroll list as estimated by states_to_pianoroll().
@@ -231,95 +246,80 @@ def pianoroll_to_midi(bpm: float, pianoroll: list) -> midiutil.MIDIFile():
     None.
 
     """
-    #bpm = librosa.beat.tempo(y)[0]
-    # print(bpm)
-    quarter_note = 60/bpm
-    #ticks_per_quarter = 1024
+    quarter_note = 60 / bpm
 
     onsets = np.array([p[0] for p in pianoroll])
     offsets = np.array([p[1] for p in pianoroll])
 
     onsets = onsets / quarter_note
     offsets = offsets / quarter_note
-    durations = offsets-onsets
+    durations = offsets - onsets
 
-    MyMIDI = midiutil.MIDIFile(1)
-    MyMIDI.addTempo(0, 0, bpm)
+    midi = midiutil.MIDIFile(1)
+    midi.addTempo(0, 0, bpm)
 
-    for i in range(len(onsets)):
-        MyMIDI.addNote(
+    for i, _ in enumerate(onsets):
+        midi.addNote(
             0, 0, int(pianoroll[i][2]), onsets[i], durations[i], 100)
 
-    return MyMIDI
-
-# def wave_to_midi(y, note_min : str = "A2", note_max : str = "E5", p_stay_note : float, p_stay_silence: float, sr : int, frame_length : int=2048, hop_length : int=512, pitch_acc : float=0.9, voiced_acc : float=0.9, onset_acc : float=0.9, spread : float=0.2) -> midiutil.MIDIFile():
+    return midi
 
 
-def wave_to_midi(y: np.array, sr: int = 22050, frame_length: int = 2048, hop_length: int = 512, note_min: str = "A2", note_max: str = "E5", p_stay_note: float = 0.9,
-                 p_stay_silence: float = 0.7, pitch_acc: float = 0.9, voiced_acc: float = 0.9, onset_acc: float = 0.9, spread: float = 0.2) -> midiutil.MIDIFile():
+def wave_to_midi(
+        audio_signal: np.array,
+        srate: int = 22050,
+        frame_length: int = 2048,
+        hop_length: int = 512,
+        note_min: str = "A2",
+        note_max: str = "E5",
+        p_stay_note: float = 0.9,
+        p_stay_silence: float = 0.7,
+        pitch_acc: float = 0.9,
+        voiced_acc: float = 0.9,
+        onset_acc: float = 0.9,
+        spread: float = 0.2) -> midiutil.MIDIFile():
     """Converts an audio signal to a MIDI file
 
     Args:
-        y (np.array): Array containing audio samples
-        sr (int, optional): Sample rate of the audio signal Defaults to 22050.
+        audio_signal (np.array): Array containing audio samples
+        srate (int, optional): Sample rate of the audio signal Defaults to 22050.
         frame_length (int, optional): Frame length for analysis. Defaults to 2048.
         hop_length (int, optional): Hop between two frames in analysis. Defaults to 512.
         note_min (str, optional): Lowest allowed note in "A#4" format. Defaults to "A2".
         note_max (str, optional): Highest allowed note in "A#4" format. Defaults to "E5".
-        p_stay_note (float, optional): Probability of staying in the same note for two subsequent frames. Defaults to 0.9.
-        p_stay_silence (float, optional): Probability of staying in the silence state for two subsequent frames. Defaults to 0.7.
-        pitch_acc (float, optional): Probability (reliability) that the pitch estimator is correct. Defaults to 0.9.
-        voiced_acc (float, optional): Estimated accuracy of the "voiced" parameter.. Defaults to 0.9.
+        p_stay_note (float, optional): Probability of staying in the same note for two
+                                                 subsequent frames. Defaults to 0.9.
+        p_stay_silence (float, optional): Probability of staying in the silence state for
+                                                 two subsequent frames. Defaults to 0.7.
+        pitch_acc (float, optional): Probability (reliability) that the pitch estimator
+                                                 is correct. Defaults to 0.9.
+        voiced_acc (float, optional): Estimated accuracy of the "voiced" parameter.
+                                                 Defaults to 0.9.
         onset_acc (float, optional): Estimated accuracy of the onset detector. Defaults to 0.9.
-        spread (float, optional): Probability that the audio signal deviates by one semitone due to vibrato or glissando. Defaults to 0.2.
+        spread (float, optional): Probability that the audio signal deviates by one semitone
+                                                 due to vibrato or glissando. Defaults to 0.2.
 
     Returns:
         midi (midiutil.MIDIFile): A MIDI file that can be written to disk.
     """
-    T = transition_matrix(note_min, note_max, p_stay_note, p_stay_silence)
-    P = prior_probabilities(y, note_min, note_max, sr, frame_length,
-                            hop_length, pitch_acc, voiced_acc, onset_acc, spread)
-    p_init = np.zeros(T.shape[0])
+    transmat = transition_matrix(note_min, note_max, p_stay_note, p_stay_silence)
+    priors = prior_probabilities(
+        audio_signal,
+        note_min,
+        note_max,
+        srate,
+        frame_length,
+        hop_length,
+        pitch_acc,
+        voiced_acc,
+        onset_acc,
+        spread)
+    p_init = np.zeros(transmat.shape[0])
     p_init[0] = 1
-    states = librosa.sequence.viterbi(P, T, p_init=p_init)
+    states = librosa.sequence.viterbi(priors, transmat, p_init=p_init)
 
-    pianoroll = states_to_pianoroll(states, note_min, note_max, hop_length/sr)
-    bpm = librosa.beat.tempo(y)[0]
+    pianoroll = states_to_pianoroll(states, note_min, hop_length / srate)
+    bpm = librosa.beat.tempo(audio_signal)[0]
     midi = pianoroll_to_midi(bpm, pianoroll)
-    # with open(file_out, "wb") as output_file:
-    #    MyMIDI.writeFile(output_file)
+
     return midi
-
-
-# def run(file_in, file_out):
-#     note_min='A2'
-#     note_max='E6'
-#     voiced_acc = 0.9
-#     onset_acc = 0.8
-#     frame_length=2048
-#     window_length=1024
-#     hop_length=256
-#     pitch_acc = 0.99
-#     spread = 0.6
-
-#     y, sr = librosa.load(file_in)
-
-#     T = transition_matrix(note_min, note_max, 0.9, 0.2)
-#     P = prior_probabilities(y, note_min, note_max, sr, frame_length, hop_length, pitch_acc, voiced_acc, onset_acc, spread)
-#     p_init = np.zeros(T.shape[0])
-#     p_init[0] = 1
-
-#     states = librosa.sequence.viterbi(P, T, p_init=p_init)
-#     #print(states)
-#     pianoroll=states_to_pianoroll(states, note_min, note_max, hop_length/sr)
-#     #print(pianoroll)
-#     MyMIDI = pianoroll_to_midi(y, pianoroll)
-#     with open(file_out, "wb") as output_file:
-#         MyMIDI.writeFile(output_file)
-
-
-# print("Welcome!")
-# file_in = sys.argv[1]
-# file_out = sys.argv[2]
-# print(sys.argv[1], sys.argv[2])
-# run(file_in, file_out)

@@ -6,7 +6,6 @@ import librosa
 
 from audio2midi import wave_to_midi
 
-
 if __name__ == "__main__":
     print("Starting...")
     file_in = sys.argv[1]
@@ -19,6 +18,3 @@ if __name__ == "__main__":
         midi.writeFile(f)
     print("Done. Exiting!")
     
-
-
-
