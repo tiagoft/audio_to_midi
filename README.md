@@ -2,7 +2,7 @@
 
 Follow this guide for installation and usage.
 
-For information on how it works, check the [whitepaper](monophonic_audio_to_midi.md).
+For information about how it works, read the [whitepaper](monophonic_audio_to_midi.md).
 
 ## Quickstart guides
 
@@ -11,9 +11,8 @@ For information on how it works, check the [whitepaper](monophonic_audio_to_midi
 
 `git clone https://github.com/tiagoft/audio_to_midi.git`
 
-### Using as python library
+### Usage as a Python library
 
-The source code for `cli.py` can be an example:
 
     import sys
     import librosa
@@ -32,7 +31,7 @@ The source code for `cli.py` can be an example:
     print("Done. Exiting!")
 
 
-### Using as command line tool
+### Command-line interface (CLI)
 
 `cd audio_to_midi`
 
