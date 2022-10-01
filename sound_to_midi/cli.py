@@ -4,7 +4,7 @@ import sys
 
 import librosa
 
-from audio_to_midi.monophonic import wave_to_midi
+from sound_to_midi.monophonic import wave_to_midi
 
 def run():
     print("Starting...")
