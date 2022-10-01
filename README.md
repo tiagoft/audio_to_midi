@@ -6,10 +6,15 @@ For information about how it works, read the [whitepaper](monophonic_audio_to_mi
 
 ## Quickstart guides
 
-### Installation
-`pip3 install numpy librosa midiutil`
+### Installation from Github repo
 
 `git clone https://github.com/tiagoft/audio_to_midi.git`
+
+`cd audio_to_midi`
+
+`python -m build`
+
+`pip install .\dist\wav2midi-0.0.1-py3-none-any.whl`
 
 ### Usage as a Python library
 
@@ -17,7 +22,7 @@ For information about how it works, read the [whitepaper](monophonic_audio_to_mi
     import sys
     import librosa
 
-    from audio2midi import wave_to_midi
+    from audio_to_midi.monophonic import wave_to_midi
 
     print("Starting...")
     file_in = sys.argv[1]
@@ -33,9 +38,11 @@ For information about how it works, read the [whitepaper](monophonic_audio_to_mi
 
 ### Command-line interface (CLI)
 
-`cd audio_to_midi`
+After installing:
 
-`python3 src/cli.py input_wav_file.wav output_midi_file.mid`
+`w2m input_file.wav output_file.mid`
+
+(supports most common formats like wav, aiff, mp3...)
 
 
 

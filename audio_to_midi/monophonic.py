@@ -119,12 +119,13 @@ def prior_probabilities(
 
     # pitch and voicing
     pitch, voiced_flag, _ = librosa.pyin(
-        audio_signal, fmin * 0.9, fmax * 1.1,
-        srate, frame_length, int(frame_length / 2), hop_length)
+        y=audio_signal, fmin=fmin * 0.9, fmax=fmax * 1.1,
+        sr=srate, frame_length=frame_length, win_length=int(frame_length / 2),
+        hop_length=hop_length)
     tuning = librosa.pitch_tuning(pitch)
     f0_ = np.round(librosa.hz_to_midi(pitch - tuning)).astype(int)
     onsets = librosa.onset.onset_detect(
-        audio_signal, sr=srate,
+        y=audio_signal, sr=srate,
         hop_length=hop_length, backtrack=True)
 
     priors = np.ones((n_notes * 2 + 1, len(pitch)))
@@ -319,7 +320,7 @@ def wave_to_midi(
     states = librosa.sequence.viterbi(priors, transmat, p_init=p_init)
 
     pianoroll = states_to_pianoroll(states, note_min, hop_length / srate)
-    bpm = librosa.beat.tempo(audio_signal)[0]
+    bpm = librosa.beat.tempo(y=audio_signal)[0]
     midi = pianoroll_to_midi(bpm, pianoroll)
 
     return midi
