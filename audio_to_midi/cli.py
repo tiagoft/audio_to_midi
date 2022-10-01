@@ -10,12 +10,12 @@ def run():
     print("Starting...")
     file_in = sys.argv[1]
     file_out = sys.argv[2]
-    y, sr = librosa.load(file_in, sr=None)
+    audio_data, srate = librosa.load(file_in, sr=None)
     print("Audio file loaded!")
-    midi = wave_to_midi(y, srate=sr)
+    midi = wave_to_midi(audio_data, srate=srate)
     print("Conversion finished!")
-    with open (file_out, 'wb') as f:
-        midi.writeFile(f)
+    with open (file_out, 'wb') as file:
+        midi.writeFile(file)
     print("Done. Exiting!")
 
 
