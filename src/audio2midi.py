@@ -61,7 +61,7 @@ def transition_matrix(note_min : str, note_max: str, p_stay_note: float, p_stay_
     return T
 
 
-def prior_probabilities(y : np.array(), note_min : str, note_max : str, sr : int, frame_length : int=2048, hop_length : int=512, pitch_acc : float=0.9, voiced_acc : float=0.9, onset_acc : float=0.9, spread : float=0.2):
+def prior_probabilities(y : np.array(), note_min : str, note_max : str, sr : int, frame_length : int=2048, hop_length : int=512, pitch_acc : float=0.9, voiced_acc : float=0.9, onset_acc : float=0.9, spread : float=0.2) -> np.array():
     """
     Estimate prior (observed) probabilities from audio signal    
 
