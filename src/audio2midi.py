@@ -59,3 +59,79 @@ def transition_matrix(note_min : str, note_max: str, p_stay_note: float, p_stay_
             T[(i*2)+2, (j*2)+1] = p__
     
     return T
+
+
+def states_to_pianoroll(states : list(int), note_min : str, note_max : str, hop_time : float) -> list:
+    """
+    Converts state sequence to an intermediate, internal piano-roll notation
+
+    Parameters
+    ----------
+    states : list of int (or other iterable)
+        Sequence of states estimated by Viterbi
+    note_min : string, 'A#4' format
+        Lowest note supported by this estimator
+    note_max : string, 'A#4' format
+        Highest note supported by this estimator
+    hop_time : float
+        Time interval between two states.
+
+    Returns
+    -------
+    output : List of lists
+        output[i] is the i-th note in the sequence. Each note is a list
+        described by [onset_time, offset_time, pitch, note_name], e.g., output[1][0]
+        is the onset time for the second note.
+    """
+    midi_min = librosa.note_to_midi(note_min)
+    midi_max = librosa.note_to_midi(note_max)
+    
+    states_ = np.hstack( (states, np.zeros(1)))
+    
+    # possible types of states
+    silence = 0
+    onset = 1
+    sustain = 2
+
+    my_state = silence
+    output = []
+    
+    last_onset = 0
+    last_offset = 0
+    last_midi = 0
+    for i in range(len(states_)):
+        if my_state == silence:
+            if int(states_[i]%2) != 0:
+                # Found an onset!
+                last_onset = i * hop_time
+                last_midi = ((states_[i]-1)/2)+midi_min
+                last_note = librosa.midi_to_note(last_midi)
+                my_state = onset
+
+
+        elif my_state == onset:
+            if int(states_[i]%2) == 0:
+                my_state = sustain
+
+        elif my_state == sustain:
+            if int(states_[i]%2) != 0:
+                # Found an onset.                
+                # Finish last note
+                last_offset = i*hop_time
+                my_note = [last_onset, last_offset, last_midi, last_note]
+                output.append(my_note)
+                
+                # Start new note
+                last_onset = i * hop_time
+                last_midi = ((states_[i]-1)/2)+midi_min
+                last_note = librosa.midi_to_note(last_midi)
+                my_state = onset
+            
+            elif states_[i]==0:
+                # Found silence. Finish last note.
+                last_offset = i*hop_time
+                my_note = [last_onset, last_offset, last_midi, last_note]
+                output.append(my_note)
+                my_state = silence
+
+    return output
