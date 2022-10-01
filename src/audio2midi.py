@@ -213,3 +213,77 @@ def states_to_pianoroll(states : list(int), note_min : str, note_max : str, hop_
                 my_state = silence
 
     return output
+
+def pianoroll_to_midi(bpm : float, pianoroll : list) -> midiutil.MIDIFile():
+    """
+    Converts an internal piano roll notation to a MIDI file
+
+    Parameters
+    ----------
+    bpm: float
+        Beats per minute for the MIDI file. If necessary, use
+        bpm = librosa.beat.tempo(y)[0] to estimate bpm.    
+        
+    pianoroll : list
+        A pianoroll list as estimated by states_to_pianoroll().
+
+    Returns
+    -------
+    None.
+
+    """
+    #bpm = librosa.beat.tempo(y)[0]
+    #print(bpm)
+    quarter_note = 60/bpm
+    ticks_per_quarter = 1024
+    
+    onsets = np.array([p[0] for p in pianoroll])
+    offsets = np.array([p[1] for p in pianoroll])
+    
+    onsets = onsets / quarter_note
+    offsets = offsets  / quarter_note
+    durations = offsets-onsets
+    
+    MyMIDI = midiutil.MIDIFile(1)
+    MyMIDI.addTempo(0, 0, bpm)
+    
+    for i in range(len(onsets)):
+        MyMIDI.addNote(0, 0, int(pianoroll[i][2]), onsets[i], durations[i], 100)
+
+    return MyMIDI
+        
+
+def run(file_in, file_out):
+    #sr=22050
+    note_min='A2'
+    note_max='E6'
+    voiced_acc = 0.9
+    onset_acc = 0.8
+    frame_length=2048
+    window_length=1024
+    hop_length=256
+    pitch_acc = 0.99
+    spread = 0.6
+    
+    y, sr = librosa.load(file_in)
+
+    T = transition_matrix(note_min, note_max, 0.9, 0.2)
+    P = prior_probabilities(y, note_min, note_max, sr, frame_length, hop_length, pitch_acc, voiced_acc, onset_acc, spread)
+    p_init = np.zeros(T.shape[0])
+    p_init[0] = 1
+    
+    states = librosa.sequence.viterbi(P, T, p_init=p_init)
+    #print(states)
+    pianoroll=states_to_pianoroll(states, note_min, note_max, hop_length/sr)
+    #print(pianoroll)
+    MyMIDI = pianoroll_to_midi(y, pianoroll)
+    with open(file_out, "wb") as output_file:
+        MyMIDI.writeFile(output_file)
+
+    
+
+print("Welcome!")
+file_in = sys.argv[1]
+file_out = sys.argv[2]
+print(sys.argv[1], sys.argv[2])    
+run(file_in, file_out)
