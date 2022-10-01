@@ -1,10 +1,18 @@
-# Audio to midi converter
+# Sound to midi converter
+
+Tools to convert audio files to midi. The CLI does not require any programming. The library enables stopping the process at any intermediate step.
+
+Currently, supports monophonic audio (tunes played one note at a time).
 
 Follow this guide for installation and usage.
 
 For information about how it works, read the [whitepaper](monophonic_audio_to_midi.md).
 
 ## Quickstart guides
+
+### Installation from pip
+
+`pip install sound_to_midi`
 
 ### Installation from Github repo
 
