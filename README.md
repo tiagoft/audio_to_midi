@@ -14,7 +14,7 @@ For information about how it works, read the [whitepaper](monophonic_audio_to_mi
 
 `python -m build`
 
-`pip install .\dist\wav2midi-0.0.1-py3-none-any.whl`
+`pip install .\dist\audio_to_midi-0.0.1-py3-none-any.whl`
 
 ### Usage as a Python library
 
