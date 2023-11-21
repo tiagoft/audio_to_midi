@@ -12,7 +12,7 @@ For information about how it works, read the [whitepaper](monophonic_audio_to_mi
 
 ### Installation from pip
 
-`pip install sound_to_midi`
+`pip install sound-to-midi`
 
 ### Installation from Github repo
 
